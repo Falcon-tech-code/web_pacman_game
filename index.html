@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacman Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+        }
+
+        canvas {
+            border: 2px solid #fff;
+        }
+
+        #score {
+            color: white;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="score">Score: 0</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+
+        const gridSize = 20;
+        const pacman = {
+            x: 50,
+            y: 50,
+            radius: 15,
+            mouthOpen: 0,
+            speed: 2,
+            direction: 0, // 0: right, 1: down, 2: left, 3: up
+        };
+
+        const ghost = {
+            x: 200,
+            y: 200,
+            radius: 15,
+            speed: 1,
+            direction: Math.random() * 2 * Math.PI, // Random bir yönde başla
+        };
+
+        const pellets = [];
+
+        let score = 0;
+        let gameOver = false;
+
+        function initializePellets() {
+            for (let i = 1; i <= 10; i++) {
+                for (let j = 1; j <= 10; j++) {
+                    pellets.push({ x: i * 40, y: j * 40 });
+                }
+            }
+        }
+
+        function drawPacman() {
+            ctx.beginPath();
+            ctx.arc(pacman.x, pacman.y, pacman.radius, (pacman.mouthOpen + 45) * Math.PI / 180, (pacman.mouthOpen - 45) * Math.PI / 180, true);
+            ctx.lineTo(pacman.x, pacman.y);
+            ctx.fillStyle = "yellow";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawGhost() {
+            ctx.beginPath();
+            ctx.arc(ghost.x, ghost.y, ghost.radius, 0, 2 * Math.PI);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPellets() {
+            ctx.fillStyle = "white";
+            for (let i = 0; i < pellets.length; i++) {
+                ctx.beginPath();
+                ctx.arc(pellets[i].x, pellets[i].y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        function updatePacman() {
+            if (pacman.mouthOpen >= 360) {
+                pacman.mouthOpen = 0;
+            }
+
+            if (pacman.direction === 0) {
+                pacman.x += pacman.speed;
+            } else if (pacman.direction === 1) {
+                pacman.y += pacman.speed;
+            } else if (pacman.direction === 2) {
+                pacman.x -= pacman.speed;
+            } else if (pacman.direction === 3) {
+                pacman.y -= pacman.speed;
+            }
+
+            // Pacman'ı oyun alanının içinde tut
+            pacman.x = Math.max(0, Math.min(pacman.x, canvas.width));
+            pacman.y = Math.max(0, Math.min(pacman.y, canvas.height));
+
+            for (let i = 0; i < pellets.length; i++) {
+                const pellet = pellets[i];
+                const distance = Math.sqrt((pacman.x - pellet.x) ** 2 + (pacman.y - pellet.y) ** 2);
+
+                if (distance < pacman.radius + 5) {
+                    // Yem yendiyse, yemi listeden kaldır
+                    pellets.splice(i, 1);
+                    i--;
+                    increaseScore();
+                }
+            }
+
+            // Düşmana çarpıldı mı kontrolü
+            const distanceToGhost = Math.sqrt((pacman.x - ghost.x) ** 2 + (pacman.y - ghost.y) ** 2);
+            if (distanceToGhost < pacman.radius + ghost.radius) {
+                endGame();
+            }
+        }
+
+        function updateGhost() {
+            ghost.x += ghost.speed * Math.cos(ghost.direction);
+            ghost.y += ghost.speed * Math.sin(ghost.direction);
+
+            // Düşmanı oyun alanının içinde tut
+            ghost.x = (ghost.x + canvas.width) % canvas.width;
+            ghost.y = (ghost.y + canvas.height) % canvas.height;
+
+            // Düşmanın duvarlara çarpması durumu
+            if (ghost.x < 0 || ghost.x > canvas.width || ghost.y < 0 || ghost.y > canvas.height) {
+                // Düşmanın hareket yönünü tersine çevir
+                ghost.direction += Math.PI;
+            }
+
+            // Düşmanın yönde değişmesi
+            if (Math.random() < 0.02) {
+                ghost.direction = Math.random() * 2 * Math.PI;
+            }
+        }
+
+        function increaseScore() {
+            score += 10;
+            scoreElement.innerText = `Score: ${score}`;
+
+            // Hayaletin hızını artır
+            ghost.speed += 0.1;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPellets();
+            drawPacman();
+            drawGhost();
+        }
+
+        function gameLoop() {
+            if (!gameOver) {
+                updatePacman();
+                updateGhost();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            alert(`Game Over! Your Score: ${score}`);
+        }
+
+        document.addEventListener("keydown", function (e) {
+            if (!gameOver) {
+                if (e.key === "ArrowRight") {
+                    pacman.direction = 0;
+                } else if (e.key === "ArrowDown") {
+                    pacman.direction = 1;
+                } else if (e.key === "ArrowLeft") {
+                    pacman.direction = 2;
+                } else if (e.key === "ArrowUp") {
+                    pacman.direction = 3;
+                }
+            }
+        });
+
+        initializePellets();
+        gameLoop();
+    </script>
+</body>
+</html>
+
+
+
